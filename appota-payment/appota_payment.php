@@ -235,7 +235,6 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
              * @return array
              */
             function receive_payment_url($order) {
-                $order_id_by_time = time() . "-" . $order->id;
                 // Tạo đường dẫn nhận kết quả trả về sau khi thanh toán thành công
                 $url_success = get_bloginfo('wpurl') . "/?wc-api=WC_Gateway_Appota_Payment";
                 // Tạo đường dẫn nhận kết quả trả về sau khi thanh toán bị dừng
@@ -260,13 +259,12 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
                 global $woocommerce;
                 $items = $woocommerce->cart->get_cart();
                 $items_data = array();
-                $i = 0;
-                foreach($items as $item => $values) { 
+                foreach($items as $values) {
                     $product = $values['data']->post;
-                    $items_data[$i]['name'] = $product->post_title;
-                    $items_data[$i]['quantity'] = $values['quantity'];
-                    $items_data[$i]['price'] = get_post_meta($values['product_id'] , '_price', true);
-                    $i++;
+                    $items_data[$values['product_id']]['id'] = $values['product_id'];
+                    $items_data[$values['product_id']]['name'] = $product->post_title;
+                    $items_data[$values['product_id']]['quantity'] = $values['quantity'];
+                    $items_data[$values['product_id']]['price'] = get_post_meta($values['product_id'] , '_price', true);
                 }
                 $params['product_info'] = json_encode($items_data);
                 $config = array();

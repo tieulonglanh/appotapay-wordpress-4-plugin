@@ -28,14 +28,7 @@ class Appota_CallApi
     {
         // build api url
         $api_url = $this->API_URL.$this->VERSION.'/payment/ecommerce?api_key='.$this->API_KEY.'&lang='.$this->LANG;
-        $data = array();
-        $data = $params;    
-        if (!$this->API_PRIVATE_KEY) {
-            return array(
-                'error' => 110,
-                'message' => 'Website chưa nhập api private key. Không thể thực hiện thanh toán!'
-            );
-        }
+        
         if(!$this->SECRET_KEY) {
             return array(
                 'error' => 111,
@@ -49,7 +42,7 @@ class Appota_CallApi
             );
         }
         // request get payment url
-        $result = $this->makeRequest($api_url, $data, $this->METHOD);
+        $result = $this->makeRequest($api_url, $params, $this->METHOD);
         return json_decode($result, true);
 
     }
