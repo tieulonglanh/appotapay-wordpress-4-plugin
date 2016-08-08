@@ -25,7 +25,7 @@ Class WC_Appota_Receiver extends WC_Gateway_Appota_Payment {
         parent::__construct();
     }
 
-    public function checkValidRequest($_GET) {
+    public function checkValidRequest($data) {
 
         if (!$this->hasCurl()) {
             return array(
@@ -33,13 +33,7 @@ Class WC_Appota_Receiver extends WC_Gateway_Appota_Payment {
                 'message' => 'Kiểm tra curl trên server'
             );
         }
-        $signature = $_GET['signature'];
-        $data['order_id'] = $_GET['merchant_order_id'];
-        $data['transaction_id'] = $_GET['transaction_id'];
-        $data['transaction_status'] = $_GET['transaction_status'];
-        $data['total_amount'] = $_GET['total_amount'];
-
-        if (!$this->verifySignature($data, $signature, $this->appota_api_secret)) {
+        if (!$this->verifySignature($data, $this->appota_api_secret)) {
             return array(
                 'error_code' => 103,
                 'message' => 'Sai signature gửi đến. Không thể thực hiện thanh toán!'
@@ -53,10 +47,10 @@ Class WC_Appota_Receiver extends WC_Gateway_Appota_Payment {
     }
 
 
-    public function checkValidOrder($_GET) {
-        $order_id = (int) $_GET['merchant_order_id'];
-        $transaction_status = (int) $_GET['transaction_status'];
-        $total_amount = floatval($_GET['total_amount']);
+    public function checkValidOrder($data) {
+        $order_id = (int) $data['order_id'];
+        $transaction_status = (int) $data['status'];
+        $total_amount = floatval($data['amount']);
         
         $confirm = '';
 
@@ -64,7 +58,7 @@ Class WC_Appota_Receiver extends WC_Gateway_Appota_Payment {
         if ($transaction_status == APPOTA_PAY_TRANSACTION_STATUS_COMPLETED) {
 
             //Lấy thông tin order
-            if (!is_numeric($order_id) && ($order_id == 0)) {
+            if ($order_id === 0) {
                 $confirm .= "\r\n" . ' Không nhận được mã đơn hàng nào : ' . $order_id;
 				return array(
                     'error_code' => 106,
@@ -99,7 +93,7 @@ Class WC_Appota_Receiver extends WC_Gateway_Appota_Payment {
                 'message' => $confirm
             );
         }
-
+        
         if ($confirm == '') {
             return array(
                 'error_code' => 0,
@@ -121,10 +115,15 @@ Class WC_Appota_Receiver extends WC_Gateway_Appota_Payment {
         return function_exists('curl_version');
     }
 
-    private function verifySignature($data, $signature, $secret_key) {
-        $str_data = serialize($data) . $secret_key;
-        $compare_signature = hash('sha256', $str_data);
-        if ($compare_signature == $signature) {
+    private function verifySignature($data, $secret_key) {
+        $signature = $data['signature'];
+	unset($data['signature']);
+        unset($data['wc-api']);
+	ksort($data);
+        $data_str = implode('', $data);
+        $secret = pack('H*', strtoupper(md5($secret_key)));
+        $new_signature = hash_hmac('sha256', $data_str, $secret);
+        if($signature == $new_signature) {
             return true;
         } else {
             return false;

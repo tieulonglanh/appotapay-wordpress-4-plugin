@@ -207,7 +207,7 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
                     return;
                 }
                 // Nếu không có lỗi, chuyển hướng url sang trang thanh toán của Appota
-                $appota_payment_url = $result['redirect_url'];
+                $appota_payment_url = $result['data']['payment_url'];
                 $logger->writeLog("Success: Redirect Payment Url -> " . $appota_payment_url);
                 return array(
                     'result' => 'success',
@@ -237,27 +237,38 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
             function receive_payment_url($order) {
                 $order_id_by_time = time() . "-" . $order->id;
                 // Tạo đường dẫn nhận kết quả trả về sau khi thanh toán thành công
-                $url_success = get_bloginfo('wpurl') . "/?wc-api=WC_Gateway_Appota_Payment&order_id=$order->id";
+                $url_success = get_bloginfo('wpurl') . "/?wc-api=WC_Gateway_Appota_Payment";
                 // Tạo đường dẫn nhận kết quả trả về sau khi thanh toán bị dừng
                 $url_cancel = $order->get_cancel_order_url();
 
                 // Tạo mảng thông tin sẽ chuyển sang Appota pay để nhận đường link thanh toán
-                $params['order_id_by_time'] = strval($order_id_by_time);
-                $params['merchant_order_id'] = $order->id;
+                $params['order_id'] = $order->id;
                 $params['total_amount'] = strval($order->order_total);
                 $params['shipping_fee'] = strval($order->order_shipping); //isset($method->no_shipping) ? $method->no_shipping : 0,
                 $params['tax_fee'] = strval($order->order_tax);
                 $params['currency_code'] = strval(get_woocommerce_currency());
-                $params['order_description'] = preg_replace('/[^a-zA-Z0-9\_-]/', '', $order->customer_note);
-
                 $params['url_success'] = $url_success;
                 $params['url_cancel'] = $url_cancel;
-
+                $params['order_description'] = preg_replace('/[^a-zA-Z0-9\_-]/', '', $order->customer_note);
                 $params['payer_name'] = strval($order->billing_first_name . " " . $order->billing_last_name);
                 $params['payer_email'] = strval($order->billing_email);
                 $params['payer_phone_no'] = strval($order->billing_phone);
                 $params['payer_address'] = strval($order->shipping_address_1);
-
+                $params['ip'] = $this->auto_reverse_proxy_pre_comment_user_ip();
+                $params['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
+                
+                global $woocommerce;
+                $items = $woocommerce->cart->get_cart();
+                $items_data = array();
+                $i = 0;
+                foreach($items as $item => $values) { 
+                    $product = $values['data']->post;
+                    $items_data[$i]['name'] = $product->post_title;
+                    $items_data[$i]['quantity'] = $values['quantity'];
+                    $items_data[$i]['price'] = get_post_meta($values['product_id'] , '_price', true);
+                    $i++;
+                }
+                $params['product_info'] = json_encode($items_data);
                 $config = array();
                 $config['api_key'] = $this->appota_api_key;
                 $config['lang'] = $this->lang;
@@ -283,9 +294,9 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
                 if ($check_valid_request['error_code'] == 0) {
                     $check_valid_order = $receiver->checkValidOrder($_GET);
                     if ($check_valid_order['error_code'] == 0) {
-                        $order_id = (int) $_GET['merchant_order_id'];
+                        $order_id = (int) $_GET['order_id'];
                         $transaction_id = (int) $_GET['transaction_id'];
-                        $total_amount = floatval($_GET['total_amount']);
+                        $total_amount = floatval($_GET['amount']);
                         $order = new WC_Order($order_id);
                         $comment_status = 'Thực hiện thanh toán thành công với đơn hàng ' . $order_id . '. Giao dịch hoàn thành. Cập nhật trạng thái cho đơn hàng thành công';
                         $order->add_order_note(__($comment_status, 'woocommerce'));
@@ -311,6 +322,28 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
                     $redirect_url = add_query_arg( 'wc_error', urlencode($message . " Hãy thanh toán lại!"), '/thanh-toan/');
                     wp_redirect($redirect_url);
                 }
+            }
+            
+            function auto_reverse_proxy_pre_comment_user_ip()
+            {
+                    $REMOTE_ADDR = $_SERVER['REMOTE_ADDR'];
+                    if (!empty($_SERVER['X_FORWARDED_FOR'])) {
+                            $X_FORWARDED_FOR = explode(',', $_SERVER['X_FORWARDED_FOR']);
+                            if (!empty($X_FORWARDED_FOR)) {
+                                    $REMOTE_ADDR = trim($X_FORWARDED_FOR[0]);
+                            }
+                    }
+                    /*
+                    * Some php environments will use the $_SERVER['HTTP_X_FORWARDED_FOR'] 
+                    * variable to capture visitor address information.
+                    */
+                    elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+                            $HTTP_X_FORWARDED_FOR= explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+                            if (!empty($HTTP_X_FORWARDED_FOR)) {
+                                    $REMOTE_ADDR = trim($HTTP_X_FORWARDED_FOR[0]);
+                            }
+                    }
+                    return preg_replace('/[^0-9a-f:\., ]/si', '', $REMOTE_ADDR);
             }
 
         }

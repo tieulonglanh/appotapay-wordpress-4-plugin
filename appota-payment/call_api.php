@@ -27,19 +27,14 @@ class Appota_CallApi
     public function getPaymentUrl($params)
     {
         // build api url
-        $api_url = $this->API_URL.$this->VERSION.'/services/appota_pay?api_key='.$this->API_KEY.'&lang='.$this->LANG;
+        $api_url = $this->API_URL.$this->VERSION.'/payment/ecommerce?api_key='.$this->API_KEY.'&lang='.$this->LANG;
         $data = array();
-        $data['data'] = $params;    
-        if($this->SSL_VERIFY) {
-            if(!$this->API_PRIVATE_KEY) {
-                return array(
-                    'error' => 110,
-                    'message' => 'Website chưa nhập api private key. Không thể thực hiện thanh toán!'
-                );
-            }
-            $data['signature'] = $this->createOpenSSLSignature($params, $this->API_PRIVATE_KEY);
-        } else{
-            $data['signature'] = $this->createSignature($params, $this->SECRET_KEY);
+        $data = $params;    
+        if (!$this->API_PRIVATE_KEY) {
+            return array(
+                'error' => 110,
+                'message' => 'Website chưa nhập api private key. Không thể thực hiện thanh toán!'
+            );
         }
         if(!$this->SECRET_KEY) {
             return array(
@@ -55,16 +50,8 @@ class Appota_CallApi
         }
         // request get payment url
         $result = $this->makeRequest($api_url, $data, $this->METHOD);
-
         return json_decode($result, true);
-//        return array(
-//            'error' => 0,
-//            'redirect_url' => 'http://appotapay.com'
-//        );
-//        return array(
-//            'error' => 111,
-//            'message' => 'API Key không tồn tại. Không thể thực hiện thanh toán!'
-//        );
+
     }
 
     /*
