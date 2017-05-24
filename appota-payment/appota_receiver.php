@@ -117,10 +117,22 @@ Class WC_Appota_Receiver extends WC_Gateway_Appota_Payment {
 
     private function verifySignature($data, $secret_key) {
         $signature = $data['signature'];
-	unset($data['signature']);
-        unset($data['wc-api']);
-	ksort($data);
-        $data_str = implode('', $data);
+	//	unset($data['signature']);
+    //  unset($data['wc-api']);
+	$sign_data = array(
+		'status' => $data['status'],
+            'transaction_id' => $data['transaction_id'],
+            'order_id'  => $data['order_id'],
+            'amount'  => $data['amount'],
+            'shipping_fee'  => $data['shipping_fee'],
+            'tax_fee' => $data['tax_fee'],
+            'transaction_type' => $data['transaction_type'],
+            'currency' => $data['currency'],
+            'country_code' => $data['country_code'],
+            'message' => $data['message'],
+	);
+	ksort($sign_data);
+        $data_str = implode('', $sign_data);
         $secret = pack('H*', strtoupper(md5($secret_key)));
         $new_signature = hash_hmac('sha256', $data_str, $secret);
         if($signature == $new_signature) {
