@@ -236,7 +236,7 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
              */
             function receive_payment_url($order) {
                 // Tạo đường dẫn nhận kết quả trả về sau khi thanh toán thành công
-                $url_success = get_bloginfo('wpurl') . "/?wc-api=WC_Gateway_Appota_Payment";
+                $url_success = get_bloginfo('wpurl') . "/wc-api/WC_Gateway_Appota_Payment";
                 // Tạo đường dẫn nhận kết quả trả về sau khi thanh toán bị dừng
                 $url_cancel = $order->get_cancel_order_url();
 
@@ -255,16 +255,16 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
                 $params['payer_address'] = strval($order->shipping_address_1);
                 $params['ip'] = $this->auto_reverse_proxy_pre_comment_user_ip();
                 $params['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
-                
+
                 global $woocommerce;
                 $items = $woocommerce->cart->get_cart();
                 $items_data = array();
-                foreach($items as $values) {
+                foreach ($items as $values) {
                     $product = $values['data']->post;
                     $items_data[$values['product_id']]['id'] = $values['product_id'];
                     $items_data[$values['product_id']]['name'] = $product->post_title;
                     $items_data[$values['product_id']]['quantity'] = $values['quantity'];
-                    $items_data[$values['product_id']]['price'] = get_post_meta($values['product_id'] , '_price', true);
+                    $items_data[$values['product_id']]['price'] = get_post_meta($values['product_id'], '_price', true);
                 }
                 $params['product_info'] = json_encode($items_data);
                 $config = array();
@@ -305,43 +305,41 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 
                         $message = "Appota Pay xác nhận đơn hàng: [Order ID: {$order_id}] - [Transaction ID: {$transaction_id}] - [Total: {$total_amount}] - [{$order_status}]";
                         $logger->writeLog($message);
-                        
+
                         wp_redirect(add_query_arg('utm_nooverride', '1', $this->get_return_url($order)));
                     } else {
                         $message = "Mã Lỗi: {$check_valid_order['error_code']} - Message: {$check_valid_order['message']}";
                         $logger->writeLog($message);
-                        
-                        $redirect_url = add_query_arg( 'wc_error', urlencode($message . " Hãy thanh toán lại!"), '/thanh-toan/');
+
+                        $redirect_url = add_query_arg('wc_error', urlencode($message . " Hãy thanh toán lại!"), '/thanh-toan/');
                         wp_redirect($redirect_url);
                     }
                 } else {
                     $message = "Mã Lỗi: {$check_valid_request['error_code']} - Message: {$check_valid_request['message']}";
                     $logger->writeLog($message);
-                    $redirect_url = add_query_arg( 'wc_error', urlencode($message . " Hãy thanh toán lại!"), '/thanh-toan/');
+                    $redirect_url = add_query_arg('wc_error', urlencode($message . " Hãy thanh toán lại!"), '/thanh-toan/');
                     wp_redirect($redirect_url);
                 }
             }
-            
-            function auto_reverse_proxy_pre_comment_user_ip()
-            {
-                    $REMOTE_ADDR = $_SERVER['REMOTE_ADDR'];
-                    if (!empty($_SERVER['X_FORWARDED_FOR'])) {
-                            $X_FORWARDED_FOR = explode(',', $_SERVER['X_FORWARDED_FOR']);
-                            if (!empty($X_FORWARDED_FOR)) {
-                                    $REMOTE_ADDR = trim($X_FORWARDED_FOR[0]);
-                            }
+
+            function auto_reverse_proxy_pre_comment_user_ip() {
+                $REMOTE_ADDR = $_SERVER['REMOTE_ADDR'];
+                if (!empty($_SERVER['X_FORWARDED_FOR'])) {
+                    $X_FORWARDED_FOR = explode(',', $_SERVER['X_FORWARDED_FOR']);
+                    if (!empty($X_FORWARDED_FOR)) {
+                        $REMOTE_ADDR = trim($X_FORWARDED_FOR[0]);
                     }
-                    /*
-                    * Some php environments will use the $_SERVER['HTTP_X_FORWARDED_FOR'] 
-                    * variable to capture visitor address information.
-                    */
-                    elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                            $HTTP_X_FORWARDED_FOR= explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-                            if (!empty($HTTP_X_FORWARDED_FOR)) {
-                                    $REMOTE_ADDR = trim($HTTP_X_FORWARDED_FOR[0]);
-                            }
+                }
+                /*
+                 * Some php environments will use the $_SERVER['HTTP_X_FORWARDED_FOR'] 
+                 * variable to capture visitor address information.
+                 */ elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+                    $HTTP_X_FORWARDED_FOR = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+                    if (!empty($HTTP_X_FORWARDED_FOR)) {
+                        $REMOTE_ADDR = trim($HTTP_X_FORWARDED_FOR[0]);
                     }
-                    return preg_replace('/[^0-9a-f:\., ]/si', '', $REMOTE_ADDR);
+                }
+                return preg_replace('/[^0-9a-f:\., ]/si', '', $REMOTE_ADDR);
             }
 
         }
